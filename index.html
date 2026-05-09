@@ -1,13 +1,14 @@
 <!--
     =========================================================================================
-    === ROKYU-PACKER V2.0 : MOBILE-READY EDITION ===
+    === ROKYU-PACKER V2.1 : CLOAK & CLOUD-SYNC ===
     Propulsé par l'Architect_R09 (BPS Standard)
     
-    [LOGIQUE DE DÉPLOIEMENT]
-    1. Ce fichier doit être nommé index.html à la racine du dépôt GitHub.
-    2. Responsive : Support complet Mobile / Tablette / Desktop.
-    3. Cloak Mode : Architect par défaut (Compact sur blanc).
-    4. Flash-Update : Toujours actif pour les itérations futures.
+    [CHANGELOG V2.1]
+    1. Cloud Integration : Connexion Firestore pour sauvegarde en ligne.
+    2. Real-time Auth : Identification anonyme sécurisée pour chaque utilisateur.
+    3. Push/Pull System : Sauvegarde manuelle vers le cloud pour éviter l'entropie.
+    4. Mobile Responsive : Interface adaptée aux smartphones et tablettes.
+    5. Cloak Mode : Toujours actif (CMD+ENTER pour déverrouiller).
     =========================================================================================
 -->
 <!DOCTYPE html>
@@ -16,7 +17,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <title>ROKYU-PACKER | v2.0</title>
+    <title>ROKYU-PACKER | v2.1 CLOUD</title>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -47,7 +48,6 @@
 
         body.is-forge { background: var(--bgForge); color: var(--textForge); }
 
-        /* --- UI ELEMENTS (Cachés en Cloak) --- */
         header, .toolbar, .bar, .pane-header, #stat-bar { 
             display: none; opacity: 0; transition: opacity 0.3s ease;
         }
@@ -66,7 +66,7 @@
             border-bottom: 1px solid var(--borderForge); 
             align-items: center; 
             gap: 8px; 
-            overflow-x: auto; /* Scroll horizontal sur mobile */
+            overflow-x: auto;
             white-space: nowrap;
             scrollbar-width: none;
         }
@@ -75,16 +75,15 @@
         .btn-m { background: transparent; border: 1px solid var(--borderForge); color: rgba(255,255,255,0.4); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; transition: 0.2s; }
         .btn-m.active { border-color: var(--accent); color: var(--accent); background: rgba(0,209,255,0.05); }
 
-        /* --- MAIN LAYOUT --- */
         main { display: grid; grid-template-columns: 1fr; flex: 1; min-height: 0; transition: 0.4s; overflow-y: auto; }
         
-        /* Desktop View */
         @media (min-width: 768px) {
             body.is-forge main { grid-template-columns: 1fr 1fr; gap: 1px; background: var(--borderForge); overflow: hidden; }
         }
 
         .pane { display: flex; flex-direction: column; padding: 20px; min-height: 200px; background: transparent; position: relative; }
         body.is-forge .pane { padding: 12px; background: var(--bgForge); border-bottom: 1px solid var(--borderForge); }
+        
         @media (min-width: 768px) {
             .pane { padding: 40px; }
             body.is-forge .pane { border-bottom: none; }
@@ -100,7 +99,6 @@
         body.is-forge textarea {
             background: var(--panelForge); border: 1px solid var(--borderForge); border-radius: 6px; color: var(--textForge); font-size: 0.75rem; padding: 12px;
         }
-        body:not(.is-forge) #output { color: var(--textCloak); font-size: 1rem; }
         
         @media (min-width: 768px) {
             body.is-architect #input { flex: 0.3; }
@@ -114,9 +112,11 @@
         button.alt { background: transparent; border: 1px solid var(--borderForge); color: var(--textForge); }
         button.pink { background: var(--pink); color: white; }
 
-        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #000; padding: 8px 20px; border-radius: 20px; font-weight: 700; font-size: 0.8rem; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 1000; }
+        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #000; padding: 8px 20px; border-radius: 20px; font-weight: 700; font-size: 0.8rem; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 10000; }
         
-        .stats { display: flex; gap: 10px; font-family: var(--font-mono); font-size: 0.55rem; }
+        .stats { display: flex; gap: 10px; font-family: var(--font-mono); font-size: 0.55rem; align-items: center; }
+        .cloud-status { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+        .cloud-status.online { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
     </style>
 </head>
 <body id="app-body" class="cloak-view-architect">
@@ -124,9 +124,10 @@
     <div id="toast">ACTION OK</div>
 
     <header>
-        <h1>ROKYU-<span>PACKER</span> <small style="opacity: 0.4;">V2.0</small></h1>
+        <h1>ROKYU-<span>PACKER</span> <small style="opacity: 0.4;">V2.1 CLOUD</small></h1>
         <div class="stats" id="stat-bar">
-            <div>TKS: <span id="s-tok" style="color:var(--accent)">0</span></div>
+            <div class="cloud-status" id="cloud-led"></div>
+            <div>UID: <span id="user-id" style="color:var(--accent); opacity:0.6">...</span></div>
             <div>GAIN: <span id="s-gain" style="color:var(--accent)">0%</span></div>
         </div>
     </header>
@@ -135,10 +136,11 @@
         <button class="btn-m active" onclick="swSlot('alpha')">ALPHA</button>
         <button class="btn-m" onclick="swSlot('beta')">BETA</button>
         <button class="btn-m" onclick="swSlot('gamma')">GAMMA</button>
-        <button class="btn-m" id="id-btn" onclick="toggleIdentity()">ANCRE</button>
-        <button class="btn-m" id="cloak-pref-btn" onclick="toggleCloakPref()">CLOAK: ARC</button>
-        <button class="btn-m" onclick="handleUnpack()">Unpack</button>
-        <button class="btn-m" onclick="triggerSelfUpdate()" style="border-color: var(--pink); color: var(--pink);">⚙️ Update</button>
+        <button class="btn-m" onclick="toggleIdentity()">ANCRE</button>
+        <button class="btn-m" onclick="toggleCloakPref()">CLOAK: ARC</button>
+        <button class="btn-m" onclick="pushToCloud()" style="border-color: var(--accent); color: var(--accent);">☁️ PUSH</button>
+        <button class="btn-m" onclick="pullFromCloud()" style="border-color: var(--pink); color: var(--pink);">📥 PULL</button>
+        <button class="btn-m" onclick="triggerSelfUpdate()">⚙️ Update</button>
     </div>
 
     <main>
@@ -164,6 +166,81 @@
     <div id="preview-wrap" style="height: 0; background: white; transition: 0.3s; overflow: hidden;">
         <iframe id="preview-frame" style="width: 100%; height: 100%; border: none;"></iframe>
     </div>
+
+    <!-- FIREBASE INTEGRATION -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // CONFIG PROVIDED BY ENV
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let user = null;
+
+        // AUTH INITIALIZATION
+        const initAuth = async () => {
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Auth Error:", error);
+            }
+        };
+        initAuth();
+
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+            if (user) {
+                document.getElementById('user-id').textContent = user.uid.substring(0, 8);
+                document.getElementById('cloud-led').classList.add('online');
+            }
+        });
+
+        // CLOUD ACTIONS
+        window.pushToCloud = async () => {
+            if (!user) return showToast("CONNEXION EN COURS...");
+            try {
+                const slots = JSON.parse(localStorage.getItem('r09_v18_slots')) || {};
+                const cloakPref = localStorage.getItem('r09_cloak_pref') || 'architect';
+                
+                // Rule 1: artifacts/{appId}/public/data/{collectionName}/{docId}
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'packer_slots', user.uid);
+                await setDoc(docRef, {
+                    slots: slots,
+                    cloakPref: cloakPref,
+                    updatedAt: new Date().toISOString()
+                });
+                showToast("☁️ SAUVEGARDÉ SUR LE CLOUD");
+            } catch (e) {
+                console.error(e);
+                showToast("ERREUR CLOUD");
+            }
+        };
+
+        window.pullFromCloud = async () => {
+            if (!user) return showToast("CONNEXION EN COURS...");
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'packer_slots', user.uid);
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    localStorage.setItem('r09_v18_slots', JSON.stringify(data.slots));
+                    localStorage.setItem('r09_cloak_pref', data.cloakPref);
+                    location.reload(); // Recharger pour appliquer les slots
+                } else {
+                    showToast("AUCUNE SAUVEGARDE TROUVÉE");
+                }
+            } catch (e) {
+                console.error(e);
+                showToast("ERREUR RÉCUPÉRATION");
+            }
+        };
+    </script>
 
     <script>
         const DICT = {
@@ -200,7 +277,6 @@
             elOut.value = `@section(${isArch ? 'ARCHITECT' : 'ANCRE'})\n${p}\n[@section]`;
             const gain = Math.round((1 - (p.length / orig)) * 100);
             document.getElementById('s-gain').textContent = `${gain}%`;
-            document.getElementById('s-tok').textContent = Math.ceil(p.length / 4);
             document.getElementById('g-badge').textContent = gain > 0 ? `-${gain}%` : "";
         }
 
@@ -209,15 +285,6 @@
             let p = t.replace(/@section\(.*?\)/g, "").replace(/\[@section\]/g, "").trim();
             for (const [k, v] of Object.entries(DICT)) { p = p.replace(new RegExp(k, 'g'), v); }
             elOut.value = p; showToast("DÉCODÉ");
-        }
-
-        function triggerSelfUpdate() {
-            const newCode = prompt("Colle le nouveau firmware :");
-            if (!newCode || !newCode.includes('<!DOCTYPE html>')) return;
-            const blob = new Blob([newCode], { type: 'text/html' });
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-            a.download = `index.html`; a.click();
-            showToast("FLASH RÉUSSI");
         }
 
         function toggleForge() {
@@ -250,18 +317,6 @@
 
         window.addEventListener('keydown', e => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); toggleForge(); }
-        });
-
-        // Toggle Forge avec un triple tap sur mobile (fallback si pas de clavier)
-        let lastTap = 0;
-        let tapCount = 0;
-        body.addEventListener('touchstart', (e) => {
-            const now = Date.now();
-            if (now - lastTap < 300) {
-                tapCount++;
-                if (tapCount >= 2 && !isForge) { toggleForge(); tapCount = 0; }
-            } else { tapCount = 0; }
-            lastTap = now;
         });
 
         elIn.addEventListener('input', () => {
@@ -319,7 +374,16 @@
             }
         }
 
-        window.onload = () => { applyCloakPref(); elIn.value = slots.alpha; handlePack(); };
+        function triggerSelfUpdate() {
+            const newCode = prompt("Colle le nouveau firmware :");
+            if (!newCode || !newCode.includes('<!DOCTYPE html>')) return;
+            const blob = new Blob([newCode], { type: 'text/html' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = `index.html`; a.click();
+            showToast("FLASH RÉUSSI");
+        }
+
+        window.onload = () => { applyCloakPref(); elIn.value = slots.alpha; handlePack(); elIn.focus(); };
     </script>
 </body>
 </html>
