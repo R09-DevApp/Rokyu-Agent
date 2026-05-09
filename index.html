@@ -1,389 +1,421 @@
-<!--
-    =========================================================================================
-    === ROKYU-PACKER V2.1 : CLOAK & CLOUD-SYNC ===
-    Propulsé par l'Architect_R09 (BPS Standard)
-    
-    [CHANGELOG V2.1]
-    1. Cloud Integration : Connexion Firestore pour sauvegarde en ligne.
-    2. Real-time Auth : Identification anonyme sécurisée pour chaque utilisateur.
-    3. Push/Pull System : Sauvegarde manuelle vers le cloud pour éviter l'entropie.
-    4. Mobile Responsive : Interface adaptée aux smartphones et tablettes.
-    5. Cloak Mode : Toujours actif (CMD+ENTER pour déverrouiller).
-    =========================================================================================
--->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <title>ROKYU-PACKER | v2.1 CLOUD</title>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diorama Lab - Glassmorphism & Neon Glow</title>
     <style>
         :root {
-            --bgForge: #0b0712;
-            --panelForge: rgba(18, 12, 30, 0.98);
-            --borderForge: rgba(255, 255, 255, 0.08);
-            --textForge: #f0f5ff;
-            --bgCloak: #ffffff;
-            --textCloak: #1a1a1a;
-            --accent: #00d1ff;
-            --pink: #ff2d7d;
-            --font-main: 'Rajdhani', sans-serif;
-            --font-mono: 'JetBrains Mono', monospace;
+            --smooth-orbit: 0.4s; --smooth-tweak: 0.5s;
+            --ease: cubic-bezier(0.1, 0.9, 0.2, 1);
+            --rot-x: 0deg; --rot-y: 0deg; --rot-z: 0deg;
+            --zoom: 1; --depth-scale: 6px; --zero-point: 50; --shadow-strength: 0.4;
+            
+            /* Z = Pos, O = Opacity, B = Blur, SX = ScaleX, SY = ScaleY, G = Glow Intensity (0-1) */
+            --l1-z: 10; --l1-o: 1; --l1-b: 0px; --l1-sx: 1; --l1-sy: 1; --l1-g: 0;
+            --l2-z: 30; --l2-o: 1; --l2-b: 0px; --l2-sx: 1; --l2-sy: 1; --l2-g: 0;
+            --l3-z: 50; --l3-o: 1; --l3-b: 0px; --l3-sx: 1; --l3-sy: 1; --l3-g: 0;
+            --l4-z: 70; --l4-o: 1; --l4-b: 0px; --l4-sx: 1; --l4-sy: 1; --l4-g: 0;
+            --l5-z: 90; --l5-o: 1; --l5-b: 0px; --l5-sx: 1; --l5-sy: 1; --l5-g: 0;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        
-        body {
-            background: var(--bgCloak);
-            color: var(--textCloak);
-            font-family: var(--font-main);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #0f172a; color: #fff;
+            font-family: -apple-system, system-ui, sans-serif;
+            overflow: hidden; display: flex; 
+            user-select: none; -webkit-user-select: none;
         }
 
-        body.is-forge { background: var(--bgForge); color: var(--textForge); }
-
-        header, .toolbar, .bar, .pane-header, #stat-bar { 
-            display: none; opacity: 0; transition: opacity 0.3s ease;
-        }
-        body.is-forge header, body.is-forge .toolbar, body.is-forge .bar, body.is-forge .pane-header, body.is-forge #stat-bar { 
-            display: flex; opacity: 1;
-        }
-
-        header { height: 45px; padding: 0 15px; background: rgba(0,0,0,0.6); border-bottom: 1px solid var(--borderForge); align-items: center; justify-content: space-between; flex-shrink: 0; }
-        header h1 { font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; }
-        header h1 span { color: var(--accent); }
-
-        .toolbar { 
-            background: rgba(255,255,255,0.02); 
-            min-height: 40px; 
-            padding: 5px 10px; 
-            border-bottom: 1px solid var(--borderForge); 
-            align-items: center; 
-            gap: 8px; 
-            overflow-x: auto;
-            white-space: nowrap;
-            scrollbar-width: none;
-        }
-        .toolbar::-webkit-scrollbar { display: none; }
-
-        .btn-m { background: transparent; border: 1px solid var(--borderForge); color: rgba(255,255,255,0.4); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; transition: 0.2s; }
-        .btn-m.active { border-color: var(--accent); color: var(--accent); background: rgba(0,209,255,0.05); }
-
-        main { display: grid; grid-template-columns: 1fr; flex: 1; min-height: 0; transition: 0.4s; overflow-y: auto; }
-        
-        @media (min-width: 768px) {
-            body.is-forge main { grid-template-columns: 1fr 1fr; gap: 1px; background: var(--borderForge); overflow: hidden; }
+        /* --- MENU MOBILE --- */
+        .mobile-toggle {
+            display: none; position: absolute; top: 15px; left: 15px; z-index: 1000;
+            width: 44px; height: 44px; border-radius: 8px;
+            background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.5);
+            color: #38bdf8; font-size: 1.2rem;
+            justify-content: center; align-items: center; cursor: pointer;
+            backdrop-filter: blur(4px); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
 
-        .pane { display: flex; flex-direction: column; padding: 20px; min-height: 200px; background: transparent; position: relative; }
-        body.is-forge .pane { padding: 12px; background: var(--bgForge); border-bottom: 1px solid var(--borderForge); }
-        
-        @media (min-width: 768px) {
-            .pane { padding: 40px; }
-            body.is-forge .pane { border-bottom: none; }
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 280px; height: 100vh; background: #0b1121;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex; flex-direction: column; z-index: 100;
+            overflow-y: auto; overscroll-behavior: contain; flex-shrink: 0;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+        @media (max-width: 768px) {
+            .mobile-toggle { display: flex; }
+            .sidebar {
+                position: absolute; left: 0; top: 0; transform: translateX(-100%);
+                transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+                box-shadow: 20px 0 50px rgba(0,0,0,0.8);
+            }
+            .sidebar.is-open { transform: translateX(0); }
         }
 
-        body:not(.is-forge).cloak-view-architect .pane-ancre { display: none; }
-        body:not(.is-forge).cloak-view-ancre .pane-architect { display: none; }
-        body.is-forge .pane-ancre, body.is-forge .pane-architect { display: flex; }
+        .panel-section { padding: 20px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.01); }
+        .panel-section h2 { margin: 0 0 15px 0; font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        .control { margin-bottom: 15px; }
+        .control label { display: flex; justify-content: space-between; font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; }
+        .control label span { color: #38bdf8; font-weight: bold; }
+        input[type="range"] { width: 100%; height: 3px; background: #1e293b; border-radius: 2px; outline: none; -webkit-appearance: none; cursor: pointer; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #38bdf8; cursor: pointer; }
 
-        textarea {
-            flex: 1; background: transparent; border: none; color: var(--textCloak); font-family: var(--font-mono); font-size: 1rem; padding: 10px; resize: none; outline: none; width: 100%;
-        }
-        body.is-forge textarea {
-            background: var(--panelForge); border: 1px solid var(--borderForge); border-radius: 6px; color: var(--textForge); font-size: 0.75rem; padding: 12px;
-        }
-        
-        @media (min-width: 768px) {
-            body.is-architect #input { flex: 0.3; }
-            body.is-architect #output { flex: 1; border-color: var(--pink); }
+        select.tool-selector {
+            width: 100%; background: #1e293b; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.5);
+            border-radius: 6px; padding: 8px; font-size: 0.75rem; font-weight: 600; outline: none; cursor: pointer;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
         }
 
-        .bar { gap: 8px; padding-top: 10px; flex-shrink: 0; flex-wrap: wrap; }
-        button { 
-            background: var(--accent); color: #000; border: none; padding: 10px 16px; border-radius: 6px; font-family: var(--font-main); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; 
+        /* --- STAGE 3D --- */
+        .stage {
+            flex-grow: 1; position: relative;
+            background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+            display: flex; justify-content: center; align-items: center;
+            perspective: 1500px; cursor: grab; touch-action: none; 
         }
-        button.alt { background: transparent; border: 1px solid var(--borderForge); color: var(--textForge); }
-        button.pink { background: var(--pink); color: white; }
+        .stage:active { cursor: grabbing; }
 
-        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #000; padding: 8px 20px; border-radius: 20px; font-weight: 700; font-size: 0.8rem; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 10000; }
-        
-        .stats { display: flex; gap: 10px; font-family: var(--font-mono); font-size: 0.55rem; align-items: center; }
-        .cloud-status { width: 8px; height: 8px; border-radius: 50%; background: #555; }
-        .cloud-status.online { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
+        .diorama {
+            position: relative; width: 320px; height: 440px;
+            transform-style: preserve-3d;
+            transform: scale(var(--zoom)) rotateX(var(--rot-x)) rotateY(var(--rot-y));
+            transition: transform var(--smooth-orbit) var(--ease);
+            will-change: transform;
+        }
+
+        .pivot-plane {
+            position: absolute; inset: -40px; border: 2px dashed rgba(56, 189, 248, 0.5);
+            background-image: linear-gradient(rgba(56, 189, 248, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(56, 189, 248, 0.15) 1px, transparent 1px);
+            background-size: 30px 30px; background-position: center center;
+            transform: translateZ(0); pointer-events: none; opacity: 0; transition: opacity 0.4s ease;
+            display: flex; justify-content: center; align-items: flex-start;
+        }
+        .pivot-plane.is-visible { opacity: 1; }
+
+        /* --- CALQUES --- */
+        .layer {
+            position: absolute; inset: 0; border-radius: 24px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 0.8rem; font-weight: 700; color: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1); pointer-events: auto; touch-action: none;
+            
+            transform: translateZ(calc((var(--layer-z) - var(--zero-point)) * var(--depth-scale))) scaleX(var(--layer-sx)) scaleY(var(--layer-sy));
+            
+            -webkit-backdrop-filter: blur(var(--layer-b));
+            backdrop-filter: blur(var(--layer-b));
+            
+            transition: opacity var(--smooth-tweak) var(--ease), transform var(--smooth-tweak) var(--ease);
+            
+            /* L'ombre de profondeur physique */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, calc(var(--shadow-strength) * 0.8)), 0 calc(10px * (var(--layer-z) / 50)) calc(20px * (var(--layer-z) / 50)) rgba(0, 0, 0, var(--shadow-strength));
+        }
+
+        /* NOUVEAU : Pseudo-élément d'émission lumineuse (Glow) placé DERRIÈRE */
+        .layer::before {
+            content: ''; position: absolute; inset: 0; border-radius: inherit;
+            /* Une ombre massive colorée selon la variable du calque */
+            box-shadow: 0 0 60px 15px rgba(var(--layer-color), 0.8);
+            /* Piloté par le nouveau slider, coût CPU : Zéro */
+            opacity: var(--layer-g); 
+            z-index: -1; pointer-events: none;
+            transition: opacity var(--smooth-tweak) var(--ease);
+        }
+
+        /* Affordance : Néon de survol placé DEVANT */
+        .layer::after {
+            content: ''; position: absolute; inset: -2px; border-radius: inherit; border: 2px solid #38bdf8;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.6), inset 0 0 15px rgba(56, 189, 248, 0.4);
+            opacity: var(--hover-opacity, 0); pointer-events: none; transition: opacity 0.2s ease;
+        }
+
+        @media (hover: hover) { .layer:hover { cursor: crosshair; --hover-opacity: 1; } }
+
+        /* Mapping des données. Ajout des RGB pour la lumière via --layer-color */
+        .layer-1 { --layer-z: var(--l1-z); opacity: var(--l1-o); --layer-b: var(--l1-b); --layer-sx: var(--l1-sx); --layer-sy: var(--l1-sy); --layer-g: var(--l1-g); --layer-color: 139, 92, 246; background: linear-gradient(135deg, rgba(88,28,135,0.4), rgba(49,46,129,0.4)); }
+        .layer-2 { --layer-z: var(--l2-z); opacity: var(--l2-o); --layer-b: var(--l2-b); --layer-sx: var(--l2-sx); --layer-sy: var(--l2-sy); --layer-g: var(--l2-g); --layer-color: 59, 130, 246; background: linear-gradient(135deg, rgba(37,99,235,0.4), rgba(30,58,138,0.4)); }
+        .layer-3 { --layer-z: var(--l3-z); opacity: var(--l3-o); --layer-b: var(--l3-b); --layer-sx: var(--l3-sx); --layer-sy: var(--l3-sy); --layer-g: var(--l3-g); --layer-color: 20, 184, 166; background: linear-gradient(135deg, rgba(13,148,136,0.4), rgba(15,118,110,0.4)); }
+        .layer-4 { --layer-z: var(--l4-z); opacity: var(--l4-o); --layer-b: var(--l4-b); --layer-sx: var(--l4-sx); --layer-sy: var(--l4-sy); --layer-g: var(--l4-g); --layer-color: 249, 115, 22; background: linear-gradient(135deg, rgba(234,88,12,0.4), rgba(194,65,12,0.4)); }
+        .layer-5 { --layer-z: var(--l5-z); opacity: var(--l5-o); --layer-b: var(--l5-b); --layer-sx: var(--l5-sx); --layer-sy: var(--l5-sy); --layer-g: var(--l5-g); --layer-color: 225, 29, 72; background: linear-gradient(135deg, rgba(225,29,72,0.4), rgba(159,18,57,0.4)); }
+
+        /* --- BARRE DE ZOOM --- */
+        .zoom-bar-container {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 12px 24px; border-radius: 100px; display: flex; align-items: center; gap: 15px;
+            z-index: 50; box-shadow: 0 10px 30px rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+        }
+        .zoom-bar-container span.icon { font-size: 1.2rem; color: #64748b; font-weight: bold; }
+        .zoom-bar-container input { width: 120px; }
+        .zoom-bar-container span.val { font-size: 0.75rem; font-weight: 700; color: #38bdf8; min-width: 45px; text-align: right; }
+
+        /* --- HUD --- */
+        #hud {
+            position: absolute; pointer-events: none; background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
+            padding: 8px 12px; border-radius: 6px; font-size: 0.65rem; color: #fff;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6); z-index: 1000; display: none; transform: translate(15px, 15px);
+        }
+        #hud b { color: #38bdf8; }
+
+        /* --- MENU CARTE (Double Tap) --- */
+        #cardMenu {
+            position: absolute; background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
+            padding: 15px; border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+            z-index: 2000; display: none; width: 220px; transform: translate(-50%, -120%);
+        }
+        #cardMenu h4 { margin: 0 0 15px 0; font-size: 0.75rem; color: #fff; text-align: center; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 8px;}
+
     </style>
 </head>
-<body id="app-body" class="cloak-view-architect">
+<body>
 
-    <div id="toast">ACTION OK</div>
+    <button class="mobile-toggle" id="menuBtn">⚙️</button>
 
-    <header>
-        <h1>ROKYU-<span>PACKER</span> <small style="opacity: 0.4;">V2.1 CLOUD</small></h1>
-        <div class="stats" id="stat-bar">
-            <div class="cloud-status" id="cloud-led"></div>
-            <div>UID: <span id="user-id" style="color:var(--accent); opacity:0.6">...</span></div>
-            <div>GAIN: <span id="s-gain" style="color:var(--accent)">0%</span></div>
-        </div>
-    </header>
-
-    <div class="toolbar">
-        <button class="btn-m active" onclick="swSlot('alpha')">ALPHA</button>
-        <button class="btn-m" onclick="swSlot('beta')">BETA</button>
-        <button class="btn-m" onclick="swSlot('gamma')">GAMMA</button>
-        <button class="btn-m" onclick="toggleIdentity()">ANCRE</button>
-        <button class="btn-m" onclick="toggleCloakPref()">CLOAK: ARC</button>
-        <button class="btn-m" onclick="pushToCloud()" style="border-color: var(--accent); color: var(--accent);">☁️ PUSH</button>
-        <button class="btn-m" onclick="pullFromCloud()" style="border-color: var(--pink); color: var(--pink);">📥 PULL</button>
-        <button class="btn-m" onclick="triggerSelfUpdate()">⚙️ Update</button>
-    </div>
-
-    <main>
-        <div class="pane pane-ancre">
-            <div class="pane-header"><span class="label">Saisie (Ancre)</span></div>
-            <textarea id="input" placeholder="Ecrivez ici..."></textarea>
-            <div class="bar">
-                <button onclick="copyToChat()" class="pink">⚡ SYNC CHAT</button>
-                <button onclick="copyToDoc()" class="alt">📝 GDOC</button>
-            </div>
+    <aside class="sidebar" id="sidebar">
+        <div class="panel-section" style="background: rgba(56, 189, 248, 0.05); border-left: 3px solid #38bdf8;">
+            <h2>Action au Drag</h2>
+            <select id="dragToolCtrl" class="tool-selector">
+                <option value="z-opacity">↔ Profondeur / ↕ Opacité</option>
+                <option value="scale">↔ Largeur / ↕ Hauteur</option>
+            </select>
         </div>
 
-        <div class="pane pane-architect">
-            <div class="pane-header"><span class="label">Résultat (Architect)</span><span id="g-badge" style="color: #00ff00; font-weight: 700; font-size: 0.6rem;"></span></div>
-            <textarea id="output" readonly></textarea>
-            <div class="bar">
-                <button onclick="exportMD()" class="alt">Export .MD</button>
-                <button onclick="togglePreview()" class="alt">Preview</button>
-            </div>
+        <div class="panel-section">
+            <h2>Physique & Lissage</h2>
+            <div class="control"><label>Lissage Orbit <span>val-smooth-orbit</span></label><input type="range" id="smoothOrbitCtrl" min="0" max="2" step="0.1" value="0.4"></div>
+            <div class="control"><label>Lissage Tweak <span>val-smooth-tweak</span></label><input type="range" id="smoothTweakCtrl" min="0" max="2" step="0.1" value="0.5"></div>
+        </div>
+        <div class="panel-section">
+            <h2>Environnement</h2>
+            <div class="control"><label>Ombres <span>val-shadow-strength</span></label><input type="range" id="shadowCtrl" min="0" max="1" step="0.05" value="0.4"></div>
+            <div class="control"><label>Pivot (Z=0) <span>val-zero-point</span></label><input type="range" id="zeroCtrl" min="0" max="100" value="50"></div>
+            <div class="control"><label>Scale Profondeur <span>val-depth-scale</span></label><input type="range" id="depthCtrl" min="0" max="20" step="0.5" value="6"></div>
+        </div>
+        <div style="padding: 15px; font-size: 0.65rem; color: #64748b; text-align: center;">
+            <b style="color:#38bdf8;">Astuce :</b> Double-clic sur un calque pour régler le Flou et la Lumière.
+        </div>
+    </aside>
+
+    <main class="stage" id="stage">
+        <div class="diorama" id="diorama">
+            <div class="pivot-plane" id="pivotPlane"></div>
+            <div class="layer layer-1" data-id="1">L1</div>
+            <div class="layer layer-2" data-id="2">L2</div>
+            <div class="layer layer-3" data-id="3">L3</div>
+            <div class="layer layer-4" data-id="4">L4</div>
+            <div class="layer layer-5" data-id="5">L5</div>
         </div>
     </main>
 
-    <div id="preview-wrap" style="height: 0; background: white; transition: 0.3s; overflow: hidden;">
-        <iframe id="preview-frame" style="width: 100%; height: 100%; border: none;"></iframe>
+    <div class="zoom-bar-container" id="zoomContainer">
+        <span class="icon">−</span>
+        <input type="range" id="zoomCtrl" min="0.3" max="2.5" step="0.01" value="1">
+        <span class="icon">+</span>
+        <span class="val" id="zoomVal">100%</span>
     </div>
 
-    <!-- FIREBASE INTEGRATION -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <div id="hud">
+        <span id="hud-l1">Z:</span> <b id="hud-v1">0</b>% | 
+        <span id="hud-l2">Opacité:</span> <b id="hud-v2">0</b>%
+    </div>
 
-        // CONFIG PROVIDED BY ENV
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        let user = null;
-
-        // AUTH INITIALIZATION
-        const initAuth = async () => {
-            try {
-                await signInAnonymously(auth);
-            } catch (error) {
-                console.error("Auth Error:", error);
-            }
-        };
-        initAuth();
-
-        onAuthStateChanged(auth, (u) => {
-            user = u;
-            if (user) {
-                document.getElementById('user-id').textContent = user.uid.substring(0, 8);
-                document.getElementById('cloud-led').classList.add('online');
-            }
-        });
-
-        // CLOUD ACTIONS
-        window.pushToCloud = async () => {
-            if (!user) return showToast("CONNEXION EN COURS...");
-            try {
-                const slots = JSON.parse(localStorage.getItem('r09_v18_slots')) || {};
-                const cloakPref = localStorage.getItem('r09_cloak_pref') || 'architect';
-                
-                // Rule 1: artifacts/{appId}/public/data/{collectionName}/{docId}
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'packer_slots', user.uid);
-                await setDoc(docRef, {
-                    slots: slots,
-                    cloakPref: cloakPref,
-                    updatedAt: new Date().toISOString()
-                });
-                showToast("☁️ SAUVEGARDÉ SUR LE CLOUD");
-            } catch (e) {
-                console.error(e);
-                showToast("ERREUR CLOUD");
-            }
-        };
-
-        window.pullFromCloud = async () => {
-            if (!user) return showToast("CONNEXION EN COURS...");
-            try {
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'packer_slots', user.uid);
-                const snap = await getDoc(docRef);
-                if (snap.exists()) {
-                    const data = snap.data();
-                    localStorage.setItem('r09_v18_slots', JSON.stringify(data.slots));
-                    localStorage.setItem('r09_cloak_pref', data.cloakPref);
-                    location.reload(); // Recharger pour appliquer les slots
-                } else {
-                    showToast("AUCUNE SAUVEGARDE TROUVÉE");
-                }
-            } catch (e) {
-                console.error(e);
-                showToast("ERREUR RÉCUPÉRATION");
-            }
-        };
-    </script>
+    <div id="cardMenu">
+        <h4 id="cardMenuTitle">Réglages Calque</h4>
+        <div class="control">
+            <label>Filtre Blur <span id="blurValDisplay">0px</span></label>
+            <input type="range" id="blurInputCtrl" min="0" max="20" step="1" value="0">
+        </div>
+        <div class="control" style="margin-bottom:0;">
+            <label>Lumière (Glow) <span id="glowValDisplay">0%</span></label>
+            <input type="range" id="glowInputCtrl" min="0" max="100" step="1" value="0">
+        </div>
+    </div>
 
     <script>
-        const DICT = {
-            "@F": "display: flex; align-items: center; justify-content: center;",
-            "@C": "display: flex; flex-direction: column; align-items: center; justify-content: center;",
-            "@A": "position: absolute; inset: 0; pointer-events: none;",
-            "@T": "transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);",
-            "@P": "perspective: 1000px; transform-style: preserve-3d;",
-            "@lay": "class=\"laySection\"",
-            "@ui": "class=\"uiStagger\"",
-            "@obj": "class=\"objCard\"",
-            "@glass": "background: rgba(25, 15, 45, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);"
-        };
+        document.addEventListener('DOMContentLoaded', () => {
+            const root = document.documentElement;
+            const stage = document.getElementById('stage');
+            const hud = document.getElementById('hud');
+            const hudL1 = document.getElementById('hud-l1'), hudV1 = document.getElementById('hud-v1');
+            const hudL2 = document.getElementById('hud-l2'), hudV2 = document.getElementById('hud-v2');
+            
+            const pivotPlane = document.getElementById('pivotPlane');
+            const sidebar = document.getElementById('sidebar');
+            const cardMenu = document.getElementById('cardMenu');
+            const dragToolCtrl = document.getElementById('dragToolCtrl');
+            
+            let mode = 'IDLE', isDragging = false, ticking = false;
+            let rotX = 0, rotY = 0, startRotX, startRotY;
+            let activeId, initialZ, initialO, initialSx, initialSy, startX, startY;
+            let activeLayer = null;
+            let pivotTimeout = null;
 
-        let curSlot = 'alpha';
-        let slots = JSON.parse(localStorage.getItem('r09_v18_slots')) || { alpha: "", beta: "", gamma: "" };
-        let cloakPref = localStorage.getItem('r09_cloak_pref') || 'architect';
-        let isForge = false, isArch = false;
-        let debounce;
+            let lastTapTime = 0, lastTapTarget = null, activeMenuLayerId = null;
 
-        const elIn = document.getElementById('input');
-        const elOut = document.getElementById('output');
-        const body = document.getElementById('app-body');
+            // --- UI ISOLATION ---
+            document.getElementById('menuBtn').addEventListener('click', (e) => {
+                e.stopPropagation(); sidebar.classList.toggle('is-open');
+            });
+            const prevent = (e) => e.stopPropagation();
+            sidebar.addEventListener('mousedown', prevent); sidebar.addEventListener('touchstart', prevent, {passive: true});
+            document.getElementById('zoomContainer').addEventListener('mousedown', prevent); document.getElementById('zoomContainer').addEventListener('touchstart', prevent, {passive: true});
+            cardMenu.addEventListener('mousedown', prevent); cardMenu.addEventListener('touchstart', prevent, {passive: true});
+            
+            const closeUI = () => { sidebar.classList.remove('is-open'); cardMenu.style.display = 'none'; };
 
-        function handlePack() {
-            let t = elIn.value;
-            if (!t) { elOut.value = ""; return; }
-            const orig = t.length;
-            let p = t;
-            for (const [k, v] of Object.entries(DICT)) {
-                p = p.replace(new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), k);
-            }
-            p = p.replace(/\s+/g, ' ').trim();
-            elOut.value = `@section(${isArch ? 'ARCHITECT' : 'ANCRE'})\n${p}\n[@section]`;
-            const gain = Math.round((1 - (p.length / orig)) * 100);
-            document.getElementById('s-gain').textContent = `${gain}%`;
-            document.getElementById('g-badge').textContent = gain > 0 ? `-${gain}%` : "";
-        }
+            // --- DATA BINDING GLOBAL ---
+            const updateVar = (id, val, suffix = "", uiSuffix = "") => {
+                root.style.setProperty(`--${id}`, val + suffix);
+                const labels = document.querySelectorAll('.control label span');
+                labels.forEach(span => { if(span.textContent.includes(id)) span.textContent = val + (uiSuffix || suffix); });
+            };
+            const bind = (id, varName, suffix, uiSuffix = "") => {
+                const el = document.getElementById(id);
+                if(el) { el.oninput = (e) => updateVar(varName, e.target.value, suffix, uiSuffix); updateVar(varName, el.value, suffix, uiSuffix); }
+            };
+            
+            bind('smoothOrbitCtrl', 'smooth-orbit', 's');
+            bind('smoothTweakCtrl', 'smooth-tweak', 's');
+            bind('shadowCtrl', 'shadow-strength', '');
+            bind('depthCtrl', 'depth-scale', 'px');
+            
+            document.getElementById('zeroCtrl').oninput = (e) => {
+                updateVar('zero-point', e.target.value, "", "%");
+                pivotPlane.classList.add('is-visible');
+                clearTimeout(pivotTimeout);
+                pivotTimeout = setTimeout(() => pivotPlane.classList.remove('is-visible'), 800);
+            };
 
-        function handleUnpack() {
-            let t = elIn.value;
-            let p = t.replace(/@section\(.*?\)/g, "").replace(/\[@section\]/g, "").trim();
-            for (const [k, v] of Object.entries(DICT)) { p = p.replace(new RegExp(k, 'g'), v); }
-            elOut.value = p; showToast("DÉCODÉ");
-        }
+            document.getElementById('zoomCtrl').oninput = (e) => {
+                root.style.setProperty('--zoom', e.target.value);
+                document.getElementById('zoomVal').textContent = Math.round(e.target.value * 100) + "%";
+            };
 
-        function toggleForge() {
-            isForge = !isForge;
-            body.classList.toggle('is-forge', isForge);
-            if (!isForge) body.classList.remove('is-architect');
-            else handlePack();
-            showToast(isForge ? "FORGE OPEN" : "CLOAK ON");
-        }
+            // --- MENU CARTE (BLUR & GLOW) ---
+            const openCardMenu = (layer, ptr) => {
+                activeMenuLayerId = layer.dataset.id;
+                
+                // Récupération sécurisée des variables CSS
+                const style = getComputedStyle(root);
+                const currentBlur = style.getPropertyValue(`--l${activeMenuLayerId}-b`).replace('px', '').trim() || 0;
+                const currentGlow = style.getPropertyValue(`--l${activeMenuLayerId}-g`).trim() || 0;
+                
+                document.getElementById('cardMenuTitle').textContent = `Réglages Calque ${activeMenuLayerId}`;
+                
+                document.getElementById('blurInputCtrl').value = currentBlur;
+                document.getElementById('blurValDisplay').textContent = `${currentBlur}px`;
+                
+                document.getElementById('glowInputCtrl').value = currentGlow * 100;
+                document.getElementById('glowValDisplay').textContent = `${Math.round(currentGlow * 100)}%`;
+                
+                cardMenu.style.display = 'block'; cardMenu.style.left = `${ptr.x}px`; cardMenu.style.top = `${ptr.y}px`;
+            };
 
-        function toggleIdentity() {
-            isArch = !isArch;
-            body.classList.toggle('is-architect', isArch);
-            document.getElementById('id-btn').textContent = isArch ? "ARCHITECT" : "ANCRE";
-            handlePack();
-        }
+            document.getElementById('blurInputCtrl').addEventListener('input', (e) => {
+                const val = e.target.value;
+                document.getElementById('blurValDisplay').textContent = `${val}px`;
+                root.style.setProperty(`--l${activeMenuLayerId}-b`, `${val}px`);
+            });
 
-        function toggleCloakPref() {
-            cloakPref = cloakPref === 'ancre' ? 'architect' : 'ancre';
-            localStorage.setItem('r09_cloak_pref', cloakPref);
-            applyCloakPref();
-            showToast("CLOAK: " + cloakPref.toUpperCase());
-        }
+            document.getElementById('glowInputCtrl').addEventListener('input', (e) => {
+                const val = e.target.value;
+                document.getElementById('glowValDisplay').textContent = `${val}%`;
+                // Injection d'une valeur de 0.0 à 1.0 pour l'opacité CSS
+                root.style.setProperty(`--l${activeMenuLayerId}-g`, val / 100);
+            });
 
-        function applyCloakPref() {
-            body.classList.remove('cloak-view-ancre', 'cloak-view-architect');
-            body.classList.add('cloak-view-' + cloakPref);
-            document.getElementById('cloak-pref-btn').textContent = "CLOAK: " + (cloakPref === 'architect' ? 'ARC' : 'ANC');
-        }
+            // --- MOTEUR INTERACTION (DRAG & DROP) ---
+            const getPtr = (e) => (e.touches ? {x: e.touches[0].clientX, y: e.touches[0].clientY} : {x: e.clientX, y: e.clientY});
 
-        window.addEventListener('keydown', e => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); toggleForge(); }
+            const start = (e) => {
+                if(e.button === 2) return; 
+                closeUI();
+                const ptr = getPtr(e);
+                activeLayer = e.target.closest('.layer');
+
+                const now = Date.now();
+                if (activeLayer && activeLayer === lastTapTarget && (now - lastTapTime) < 300) {
+                    isDragging = false; openCardMenu(activeLayer, ptr); lastTapTime = 0; return;
+                }
+                lastTapTime = now; lastTapTarget = activeLayer;
+
+                isDragging = true; startX = ptr.x; startY = ptr.y;
+                
+                if (activeLayer) {
+                    mode = 'TWEAK';
+                    activeId = activeLayer.dataset.id;
+                    const style = getComputedStyle(root);
+                    initialZ = parseFloat(style.getPropertyValue(`--l${activeId}-z`)) || 50;
+                    initialO = parseFloat(style.getPropertyValue(`--l${activeId}-o`)) || 1;
+                    initialSx = parseFloat(style.getPropertyValue(`--l${activeId}-sx`)) || 1;
+                    initialSy = parseFloat(style.getPropertyValue(`--l${activeId}-sy`)) || 1;
+                    
+                    hud.style.display = 'block';
+                    activeLayer.style.setProperty('--hover-opacity', '1');
+                } else {
+                    mode = 'ORBIT';
+                    startRotX = rotX; startRotY = rotY;
+                }
+            };
+
+            const move = (e) => {
+                if (!isDragging) return;
+                if (!ticking) {
+                    requestAnimationFrame(() => {
+                        const ptr = getPtr(e);
+                        const dx = ptr.x - startX;
+                        const dy = ptr.y - startY;
+                        
+                        if (mode === 'ORBIT') {
+                            rotY = startRotY + (dx * 0.4);
+                            rotX = Math.max(-90, Math.min(90, startRotX - (dy * 0.4)));
+                            root.style.setProperty('--rot-x', `${rotX}deg`);
+                            root.style.setProperty('--rot-y', `${rotY}deg`);
+                        } else if (mode === 'TWEAK') {
+                            const activeTool = dragToolCtrl.value;
+                            
+                            if (activeTool === 'z-opacity') {
+                                let nZ = Math.max(0, Math.min(100, initialZ + (dx * 0.25)));
+                                let nO = Math.max(0, Math.min(1, initialO - (dy * 0.003)));
+                                root.style.setProperty(`--l${activeId}-z`, nZ.toFixed(1));
+                                root.style.setProperty(`--l${activeId}-o`, nO.toFixed(3));
+                                
+                                hudL1.textContent = "Z-Pos: "; hudV1.textContent = Math.round(nZ);
+                                hudL2.textContent = "Opacité: "; hudV2.textContent = Math.round(nO * 100);
+                            } else if (activeTool === 'scale') {
+                                let nSx = Math.max(0.2, Math.min(3, initialSx + (dx * 0.005)));
+                                let nSy = Math.max(0.2, Math.min(3, initialSy + (dy * 0.005)));
+                                root.style.setProperty(`--l${activeId}-sx`, nSx.toFixed(2));
+                                root.style.setProperty(`--l${activeId}-sy`, nSy.toFixed(2));
+                                
+                                hudL1.textContent = "Largeur: "; hudV1.textContent = Math.round(nSx * 100);
+                                hudL2.textContent = "Hauteur: "; hudV2.textContent = Math.round(nSy * 100);
+                            }
+                            
+                            hud.style.left = (ptr.x + 20) + 'px'; hud.style.top = (ptr.y - 40) + 'px';
+                        }
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            };
+
+            const stop = () => {
+                isDragging = false; mode = 'IDLE'; hud.style.display = 'none';
+                if (activeLayer) { activeLayer.style.removeProperty('--hover-opacity'); activeLayer = null; }
+            };
+
+            stage.addEventListener('mousedown', start); window.addEventListener('mousemove', move, { passive: true }); window.addEventListener('mouseup', stop);
+            stage.addEventListener('touchstart', start, { passive: true }); window.addEventListener('touchmove', move, { passive: true }); window.addEventListener('touchend', stop);
+
+            // Initialisation esthétique
+            for(let i=1; i<=5; i++) root.style.setProperty(`--l${i}-o`, (Math.random() * 0.5 + 0.5).toFixed(2));
         });
-
-        elIn.addEventListener('input', () => {
-            clearTimeout(debounce);
-            debounce = setTimeout(() => {
-                handlePack();
-                slots[curSlot] = elIn.value;
-                localStorage.setItem('r09_v18_slots', JSON.stringify(slots));
-            }, 150);
-        });
-
-        function swSlot(id) {
-            slots[curSlot] = elIn.value;
-            localStorage.setItem('r09_v18_slots', JSON.stringify(slots));
-            document.querySelectorAll('.btn-m').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            curSlot = id; elIn.value = slots[id] || ""; handlePack();
-        }
-
-        function copyToChat() { 
-            const el = document.createElement('textarea');
-            el.value = elOut.value;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
-            showToast("COPIÉ CHAT"); 
-        }
-
-        function copyToDoc() { 
-            const final = `--- R09 SYNC [${new Date().toLocaleString()}] ---\n${elOut.value}`;
-            const el = document.createElement('textarea');
-            el.value = final;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
-            showToast("FORMATÉ GDOC"); 
-        }
-
-        function showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 2000); }
-        
-        function exportMD() {
-            const blob = new Blob([elOut.value], { type: 'text/markdown' });
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-            a.download = `msgRokyu-${Date.now()}.md`; a.click();
-        }
-
-        function togglePreview() {
-            const w = document.getElementById('preview-wrap');
-            w.style.height = w.style.height === '35vh' ? '0' : '35vh';
-            if (w.style.height !== '0') {
-                const d = document.getElementById('preview-frame').contentDocument;
-                d.open(); d.write(elOut.value || elIn.value); d.close();
-            }
-        }
-
-        function triggerSelfUpdate() {
-            const newCode = prompt("Colle le nouveau firmware :");
-            if (!newCode || !newCode.includes('<!DOCTYPE html>')) return;
-            const blob = new Blob([newCode], { type: 'text/html' });
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-            a.download = `index.html`; a.click();
-            showToast("FLASH RÉUSSI");
-        }
-
-        window.onload = () => { applyCloakPref(); elIn.value = slots.alpha; handlePack(); elIn.focus(); };
     </script>
 </body>
 </html>
