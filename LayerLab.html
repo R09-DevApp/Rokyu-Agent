@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diorama Lab - Glassmorphism & Neon Glow</title>
+    <style>
+        :root {
+            --smooth-orbit: 0.4s; --smooth-tweak: 0.5s;
+            --ease: cubic-bezier(0.1, 0.9, 0.2, 1);
+            --rot-x: 0deg; --rot-y: 0deg; --rot-z: 0deg;
+            --zoom: 1; --depth-scale: 6px; --zero-point: 50; --shadow-strength: 0.4;
+            
+            /* Z = Pos, O = Opacity, B = Blur, SX = ScaleX, SY = ScaleY, G = Glow Intensity (0-1) */
+            --l1-z: 10; --l1-o: 1; --l1-b: 0px; --l1-sx: 1; --l1-sy: 1; --l1-g: 0;
+            --l2-z: 30; --l2-o: 1; --l2-b: 0px; --l2-sx: 1; --l2-sy: 1; --l2-g: 0;
+            --l3-z: 50; --l3-o: 1; --l3-b: 0px; --l3-sx: 1; --l3-sy: 1; --l3-g: 0;
+            --l4-z: 70; --l4-o: 1; --l4-b: 0px; --l4-sx: 1; --l4-sy: 1; --l4-g: 0;
+            --l5-z: 90; --l5-o: 1; --l5-b: 0px; --l5-sx: 1; --l5-sy: 1; --l5-g: 0;
+        }
+
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #0f172a; color: #fff;
+            font-family: -apple-system, system-ui, sans-serif;
+            overflow: hidden; display: flex; 
+            user-select: none; -webkit-user-select: none;
+        }
+
+        /* --- MENU MOBILE --- */
+        .mobile-toggle {
+            display: none; position: absolute; top: 15px; left: 15px; z-index: 1000;
+            width: 44px; height: 44px; border-radius: 8px;
+            background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.5);
+            color: #38bdf8; font-size: 1.2rem;
+            justify-content: center; align-items: center; cursor: pointer;
+            backdrop-filter: blur(4px); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 280px; height: 100vh; background: #0b1121;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex; flex-direction: column; z-index: 100;
+            overflow-y: auto; overscroll-behavior: contain; flex-shrink: 0;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+        @media (max-width: 768px) {
+            .mobile-toggle { display: flex; }
+            .sidebar {
+                position: absolute; left: 0; top: 0; transform: translateX(-100%);
+                transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+                box-shadow: 20px 0 50px rgba(0,0,0,0.8);
+            }
+            .sidebar.is-open { transform: translateX(0); }
+        }
+
+        .panel-section { padding: 20px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.01); }
+        .panel-section h2 { margin: 0 0 15px 0; font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        .control { margin-bottom: 15px; }
+        .control label { display: flex; justify-content: space-between; font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; }
+        .control label span { color: #38bdf8; font-weight: bold; }
+        input[type="range"] { width: 100%; height: 3px; background: #1e293b; border-radius: 2px; outline: none; -webkit-appearance: none; cursor: pointer; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #38bdf8; cursor: pointer; }
+
+        select.tool-selector {
+            width: 100%; background: #1e293b; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.5);
+            border-radius: 6px; padding: 8px; font-size: 0.75rem; font-weight: 600; outline: none; cursor: pointer;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* --- STAGE 3D --- */
+        .stage {
+            flex-grow: 1; position: relative;
+            background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+            display: flex; justify-content: center; align-items: center;
+            perspective: 1500px; cursor: grab; touch-action: none; 
+        }
+        .stage:active { cursor: grabbing; }
+
+        .diorama {
+            position: relative; width: 320px; height: 440px;
+            transform-style: preserve-3d;
+            transform: scale(var(--zoom)) rotateX(var(--rot-x)) rotateY(var(--rot-y));
+            transition: transform var(--smooth-orbit) var(--ease);
+            will-change: transform;
+        }
+
+        .pivot-plane {
+            position: absolute; inset: -40px; border: 2px dashed rgba(56, 189, 248, 0.5);
+            background-image: linear-gradient(rgba(56, 189, 248, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(56, 189, 248, 0.15) 1px, transparent 1px);
+            background-size: 30px 30px; background-position: center center;
+            transform: translateZ(0); pointer-events: none; opacity: 0; transition: opacity 0.4s ease;
+            display: flex; justify-content: center; align-items: flex-start;
+        }
+        .pivot-plane.is-visible { opacity: 1; }
+
+        /* --- CALQUES --- */
+        .layer {
+            position: absolute; inset: 0; border-radius: 24px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 0.8rem; font-weight: 700; color: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1); pointer-events: auto; touch-action: none;
+            
+            transform: translateZ(calc((var(--layer-z) - var(--zero-point)) * var(--depth-scale))) scaleX(var(--layer-sx)) scaleY(var(--layer-sy));
+            
+            -webkit-backdrop-filter: blur(var(--layer-b));
+            backdrop-filter: blur(var(--layer-b));
+            
+            transition: opacity var(--smooth-tweak) var(--ease), transform var(--smooth-tweak) var(--ease);
+            
+            /* L'ombre de profondeur physique */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, calc(var(--shadow-strength) * 0.8)), 0 calc(10px * (var(--layer-z) / 50)) calc(20px * (var(--layer-z) / 50)) rgba(0, 0, 0, var(--shadow-strength));
+        }
+
+        /* NOUVEAU : Pseudo-élément d'émission lumineuse (Glow) placé DERRIÈRE */
+        .layer::before {
+            content: ''; position: absolute; inset: 0; border-radius: inherit;
+            /* Une ombre massive colorée selon la variable du calque */
+            box-shadow: 0 0 60px 15px rgba(var(--layer-color), 0.8);
+            /* Piloté par le nouveau slider, coût CPU : Zéro */
+            opacity: var(--layer-g); 
+            z-index: -1; pointer-events: none;
+            transition: opacity var(--smooth-tweak) var(--ease);
+        }
+
+        /* Affordance : Néon de survol placé DEVANT */
+        .layer::after {
+            content: ''; position: absolute; inset: -2px; border-radius: inherit; border: 2px solid #38bdf8;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.6), inset 0 0 15px rgba(56, 189, 248, 0.4);
+            opacity: var(--hover-opacity, 0); pointer-events: none; transition: opacity 0.2s ease;
+        }
+
+        @media (hover: hover) { .layer:hover { cursor: crosshair; --hover-opacity: 1; } }
+
+        /* Mapping des données. Ajout des RGB pour la lumière via --layer-color */
+        .layer-1 { --layer-z: var(--l1-z); opacity: var(--l1-o); --layer-b: var(--l1-b); --layer-sx: var(--l1-sx); --layer-sy: var(--l1-sy); --layer-g: var(--l1-g); --layer-color: 139, 92, 246; background: linear-gradient(135deg, rgba(88,28,135,0.4), rgba(49,46,129,0.4)); }
+        .layer-2 { --layer-z: var(--l2-z); opacity: var(--l2-o); --layer-b: var(--l2-b); --layer-sx: var(--l2-sx); --layer-sy: var(--l2-sy); --layer-g: var(--l2-g); --layer-color: 59, 130, 246; background: linear-gradient(135deg, rgba(37,99,235,0.4), rgba(30,58,138,0.4)); }
+        .layer-3 { --layer-z: var(--l3-z); opacity: var(--l3-o); --layer-b: var(--l3-b); --layer-sx: var(--l3-sx); --layer-sy: var(--l3-sy); --layer-g: var(--l3-g); --layer-color: 20, 184, 166; background: linear-gradient(135deg, rgba(13,148,136,0.4), rgba(15,118,110,0.4)); }
+        .layer-4 { --layer-z: var(--l4-z); opacity: var(--l4-o); --layer-b: var(--l4-b); --layer-sx: var(--l4-sx); --layer-sy: var(--l4-sy); --layer-g: var(--l4-g); --layer-color: 249, 115, 22; background: linear-gradient(135deg, rgba(234,88,12,0.4), rgba(194,65,12,0.4)); }
+        .layer-5 { --layer-z: var(--l5-z); opacity: var(--l5-o); --layer-b: var(--l5-b); --layer-sx: var(--l5-sx); --layer-sy: var(--l5-sy); --layer-g: var(--l5-g); --layer-color: 225, 29, 72; background: linear-gradient(135deg, rgba(225,29,72,0.4), rgba(159,18,57,0.4)); }
+
+        /* --- BARRE DE ZOOM --- */
+        .zoom-bar-container {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 12px 24px; border-radius: 100px; display: flex; align-items: center; gap: 15px;
+            z-index: 50; box-shadow: 0 10px 30px rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+        }
+        .zoom-bar-container span.icon { font-size: 1.2rem; color: #64748b; font-weight: bold; }
+        .zoom-bar-container input { width: 120px; }
+        .zoom-bar-container span.val { font-size: 0.75rem; font-weight: 700; color: #38bdf8; min-width: 45px; text-align: right; }
+
+        /* --- HUD --- */
+        #hud {
+            position: absolute; pointer-events: none; background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
+            padding: 8px 12px; border-radius: 6px; font-size: 0.65rem; color: #fff;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6); z-index: 1000; display: none; transform: translate(15px, 15px);
+        }
+        #hud b { color: #38bdf8; }
+
+        /* --- MENU CARTE (Double Tap) --- */
+        #cardMenu {
+            position: absolute; background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
+            padding: 15px; border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+            z-index: 2000; display: none; width: 220px; transform: translate(-50%, -120%);
+        }
+        #cardMenu h4 { margin: 0 0 15px 0; font-size: 0.75rem; color: #fff; text-align: center; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 8px;}
+
+    </style>
+</head>
+<body>
+
+    <button class="mobile-toggle" id="menuBtn">⚙️</button>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="panel-section" style="background: rgba(56, 189, 248, 0.05); border-left: 3px solid #38bdf8;">
+            <h2>Action au Drag</h2>
+            <select id="dragToolCtrl" class="tool-selector">
+                <option value="z-opacity">↔ Profondeur / ↕ Opacité</option>
+                <option value="scale">↔ Largeur / ↕ Hauteur</option>
+            </select>
+        </div>
+
+        <div class="panel-section">
+            <h2>Physique & Lissage</h2>
+            <div class="control"><label>Lissage Orbit <span>val-smooth-orbit</span></label><input type="range" id="smoothOrbitCtrl" min="0" max="2" step="0.1" value="0.4"></div>
+            <div class="control"><label>Lissage Tweak <span>val-smooth-tweak</span></label><input type="range" id="smoothTweakCtrl" min="0" max="2" step="0.1" value="0.5"></div>
+        </div>
+        <div class="panel-section">
+            <h2>Environnement</h2>
+            <div class="control"><label>Ombres <span>val-shadow-strength</span></label><input type="range" id="shadowCtrl" min="0" max="1" step="0.05" value="0.4"></div>
+            <div class="control"><label>Pivot (Z=0) <span>val-zero-point</span></label><input type="range" id="zeroCtrl" min="0" max="100" value="50"></div>
+            <div class="control"><label>Scale Profondeur <span>val-depth-scale</span></label><input type="range" id="depthCtrl" min="0" max="20" step="0.5" value="6"></div>
+        </div>
+        <div style="padding: 15px; font-size: 0.65rem; color: #64748b; text-align: center;">
+            <b style="color:#38bdf8;">Astuce :</b> Double-clic sur un calque pour régler le Flou et la Lumière.
+        </div>
+    </aside>
+
+    <main class="stage" id="stage">
+        <div class="diorama" id="diorama">
+            <div class="pivot-plane" id="pivotPlane"></div>
+            <div class="layer layer-1" data-id="1">L1</div>
+            <div class="layer layer-2" data-id="2">L2</div>
+            <div class="layer layer-3" data-id="3">L3</div>
+            <div class="layer layer-4" data-id="4">L4</div>
+            <div class="layer layer-5" data-id="5">L5</div>
+        </div>
+    </main>
+
+    <div class="zoom-bar-container" id="zoomContainer">
+        <span class="icon">−</span>
+        <input type="range" id="zoomCtrl" min="0.3" max="2.5" step="0.01" value="1">
+        <span class="icon">+</span>
+        <span class="val" id="zoomVal">100%</span>
+    </div>
+
+    <div id="hud">
+        <span id="hud-l1">Z:</span> <b id="hud-v1">0</b>% | 
+        <span id="hud-l2">Opacité:</span> <b id="hud-v2">0</b>%
+    </div>
+
+    <div id="cardMenu">
+        <h4 id="cardMenuTitle">Réglages Calque</h4>
+        <div class="control">
+            <label>Filtre Blur <span id="blurValDisplay">0px</span></label>
+            <input type="range" id="blurInputCtrl" min="0" max="20" step="1" value="0">
+        </div>
+        <div class="control" style="margin-bottom:0;">
+            <label>Lumière (Glow) <span id="glowValDisplay">0%</span></label>
+            <input type="range" id="glowInputCtrl" min="0" max="100" step="1" value="0">
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const root = document.documentElement;
+            const stage = document.getElementById('stage');
+            const hud = document.getElementById('hud');
+            const hudL1 = document.getElementById('hud-l1'), hudV1 = document.getElementById('hud-v1');
+            const hudL2 = document.getElementById('hud-l2'), hudV2 = document.getElementById('hud-v2');
+            
+            const pivotPlane = document.getElementById('pivotPlane');
+            const sidebar = document.getElementById('sidebar');
+            const cardMenu = document.getElementById('cardMenu');
+            const dragToolCtrl = document.getElementById('dragToolCtrl');
+            
+            let mode = 'IDLE', isDragging = false, ticking = false;
+            let rotX = 0, rotY = 0, startRotX, startRotY;
+            let activeId, initialZ, initialO, initialSx, initialSy, startX, startY;
+            let activeLayer = null;
+            let pivotTimeout = null;
+
+            let lastTapTime = 0, lastTapTarget = null, activeMenuLayerId = null;
+
+            // --- UI ISOLATION ---
+            document.getElementById('menuBtn').addEventListener('click', (e) => {
+                e.stopPropagation(); sidebar.classList.toggle('is-open');
+            });
+            const prevent = (e) => e.stopPropagation();
+            sidebar.addEventListener('mousedown', prevent); sidebar.addEventListener('touchstart', prevent, {passive: true});
+            document.getElementById('zoomContainer').addEventListener('mousedown', prevent); document.getElementById('zoomContainer').addEventListener('touchstart', prevent, {passive: true});
+            cardMenu.addEventListener('mousedown', prevent); cardMenu.addEventListener('touchstart', prevent, {passive: true});
+            
+            const closeUI = () => { sidebar.classList.remove('is-open'); cardMenu.style.display = 'none'; };
+
+            // --- DATA BINDING GLOBAL ---
+            const updateVar = (id, val, suffix = "", uiSuffix = "") => {
+                root.style.setProperty(`--${id}`, val + suffix);
+                const labels = document.querySelectorAll('.control label span');
+                labels.forEach(span => { if(span.textContent.includes(id)) span.textContent = val + (uiSuffix || suffix); });
+            };
+            const bind = (id, varName, suffix, uiSuffix = "") => {
+                const el = document.getElementById(id);
+                if(el) { el.oninput = (e) => updateVar(varName, e.target.value, suffix, uiSuffix); updateVar(varName, el.value, suffix, uiSuffix); }
+            };
+            
+            bind('smoothOrbitCtrl', 'smooth-orbit', 's');
+            bind('smoothTweakCtrl', 'smooth-tweak', 's');
+            bind('shadowCtrl', 'shadow-strength', '');
+            bind('depthCtrl', 'depth-scale', 'px');
+            
+            document.getElementById('zeroCtrl').oninput = (e) => {
+                updateVar('zero-point', e.target.value, "", "%");
+                pivotPlane.classList.add('is-visible');
+                clearTimeout(pivotTimeout);
+                pivotTimeout = setTimeout(() => pivotPlane.classList.remove('is-visible'), 800);
+            };
+
+            document.getElementById('zoomCtrl').oninput = (e) => {
+                root.style.setProperty('--zoom', e.target.value);
+                document.getElementById('zoomVal').textContent = Math.round(e.target.value * 100) + "%";
+            };
+
+            // --- MENU CARTE (BLUR & GLOW) ---
+            const openCardMenu = (layer, ptr) => {
+                activeMenuLayerId = layer.dataset.id;
+                
+                // Récupération sécurisée des variables CSS
+                const style = getComputedStyle(root);
+                const currentBlur = style.getPropertyValue(`--l${activeMenuLayerId}-b`).replace('px', '').trim() || 0;
+                const currentGlow = style.getPropertyValue(`--l${activeMenuLayerId}-g`).trim() || 0;
+                
+                document.getElementById('cardMenuTitle').textContent = `Réglages Calque ${activeMenuLayerId}`;
+                
+                document.getElementById('blurInputCtrl').value = currentBlur;
+                document.getElementById('blurValDisplay').textContent = `${currentBlur}px`;
+                
+                document.getElementById('glowInputCtrl').value = currentGlow * 100;
+                document.getElementById('glowValDisplay').textContent = `${Math.round(currentGlow * 100)}%`;
+                
+                cardMenu.style.display = 'block'; cardMenu.style.left = `${ptr.x}px`; cardMenu.style.top = `${ptr.y}px`;
+            };
+
+            document.getElementById('blurInputCtrl').addEventListener('input', (e) => {
+                const val = e.target.value;
+                document.getElementById('blurValDisplay').textContent = `${val}px`;
+                root.style.setProperty(`--l${activeMenuLayerId}-b`, `${val}px`);
+            });
+
+            document.getElementById('glowInputCtrl').addEventListener('input', (e) => {
+                const val = e.target.value;
+                document.getElementById('glowValDisplay').textContent = `${val}%`;
+                // Injection d'une valeur de 0.0 à 1.0 pour l'opacité CSS
+                root.style.setProperty(`--l${activeMenuLayerId}-g`, val / 100);
+            });
+
+            // --- MOTEUR INTERACTION (DRAG & DROP) ---
+            const getPtr = (e) => (e.touches ? {x: e.touches[0].clientX, y: e.touches[0].clientY} : {x: e.clientX, y: e.clientY});
+
+            const start = (e) => {
+                if(e.button === 2) return; 
+                closeUI();
+                const ptr = getPtr(e);
+                activeLayer = e.target.closest('.layer');
+
+                const now = Date.now();
+                if (activeLayer && activeLayer === lastTapTarget && (now - lastTapTime) < 300) {
+                    isDragging = false; openCardMenu(activeLayer, ptr); lastTapTime = 0; return;
+                }
+                lastTapTime = now; lastTapTarget = activeLayer;
+
+                isDragging = true; startX = ptr.x; startY = ptr.y;
+                
+                if (activeLayer) {
+                    mode = 'TWEAK';
+                    activeId = activeLayer.dataset.id;
+                    const style = getComputedStyle(root);
+                    initialZ = parseFloat(style.getPropertyValue(`--l${activeId}-z`)) || 50;
+                    initialO = parseFloat(style.getPropertyValue(`--l${activeId}-o`)) || 1;
+                    initialSx = parseFloat(style.getPropertyValue(`--l${activeId}-sx`)) || 1;
+                    initialSy = parseFloat(style.getPropertyValue(`--l${activeId}-sy`)) || 1;
+                    
+                    hud.style.display = 'block';
+                    activeLayer.style.setProperty('--hover-opacity', '1');
+                } else {
+                    mode = 'ORBIT';
+                    startRotX = rotX; startRotY = rotY;
+                }
+            };
+
+            const move = (e) => {
+                if (!isDragging) return;
+                if (!ticking) {
+                    requestAnimationFrame(() => {
+                        const ptr = getPtr(e);
+                        const dx = ptr.x - startX;
+                        const dy = ptr.y - startY;
+                        
+                        if (mode === 'ORBIT') {
+                            rotY = startRotY + (dx * 0.4);
+                            rotX = Math.max(-90, Math.min(90, startRotX - (dy * 0.4)));
+                            root.style.setProperty('--rot-x', `${rotX}deg`);
+                            root.style.setProperty('--rot-y', `${rotY}deg`);
+                        } else if (mode === 'TWEAK') {
+                            const activeTool = dragToolCtrl.value;
+                            
+                            if (activeTool === 'z-opacity') {
+                                let nZ = Math.max(0, Math.min(100, initialZ + (dx * 0.25)));
+                                let nO = Math.max(0, Math.min(1, initialO - (dy * 0.003)));
+                                root.style.setProperty(`--l${activeId}-z`, nZ.toFixed(1));
+                                root.style.setProperty(`--l${activeId}-o`, nO.toFixed(3));
+                                
+                                hudL1.textContent = "Z-Pos: "; hudV1.textContent = Math.round(nZ);
+                                hudL2.textContent = "Opacité: "; hudV2.textContent = Math.round(nO * 100);
+                            } else if (activeTool === 'scale') {
+                                let nSx = Math.max(0.2, Math.min(3, initialSx + (dx * 0.005)));
+                                let nSy = Math.max(0.2, Math.min(3, initialSy + (dy * 0.005)));
+                                root.style.setProperty(`--l${activeId}-sx`, nSx.toFixed(2));
+                                root.style.setProperty(`--l${activeId}-sy`, nSy.toFixed(2));
+                                
+                                hudL1.textContent = "Largeur: "; hudV1.textContent = Math.round(nSx * 100);
+                                hudL2.textContent = "Hauteur: "; hudV2.textContent = Math.round(nSy * 100);
+                            }
+                            
+                            hud.style.left = (ptr.x + 20) + 'px'; hud.style.top = (ptr.y - 40) + 'px';
+                        }
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            };
+
+            const stop = () => {
+                isDragging = false; mode = 'IDLE'; hud.style.display = 'none';
+                if (activeLayer) { activeLayer.style.removeProperty('--hover-opacity'); activeLayer = null; }
+            };
+
+            stage.addEventListener('mousedown', start); window.addEventListener('mousemove', move, { passive: true }); window.addEventListener('mouseup', stop);
+            stage.addEventListener('touchstart', start, { passive: true }); window.addEventListener('touchmove', move, { passive: true }); window.addEventListener('touchend', stop);
+
+            // Initialisation esthétique
+            for(let i=1; i<=5; i++) root.style.setProperty(`--l${i}-o`, (Math.random() * 0.5 + 0.5).toFixed(2));
+        });
+    </script>
+</body>
+</html>
