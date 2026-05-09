@@ -1,14 +1,12 @@
 <!--
     =========================================================================================
-    === ROKYU-PACKER V1.8 : SELF-FORGE & DUAL-ENGINE ===
+    === ROKYU-PACKER V1.9 : GITHUB-PAGES EDITION ===
     Propulsé par l'Architect_R09 (BPS Standard)
     
-    [CHANGELOG V1.8]
-    1. Radical Cloak : Démarrage en Canvas blanc intégral.
-    2. Unlock CMD+ENTER : Bascule vers la Forge Sombre.
-    3. Dual Engine : Vue spécifique "ARCHITECT" (Compact) vs "ANCRE" (Clair).
-    4. Flash-Update : Capacité de l'outil à générer sa propre mise à jour.
-    5. Persistence+ : Sauvegarde auto et gestion des slots améliorée.
+    [LOGIQUE DE DÉPLOIEMENT]
+    1. Ce fichier doit être nommé index.html à la racine du dépôt GitHub.
+    2. Cloak Mode : Architect par défaut (Compact sur blanc).
+    3. Flash-Update : Toujours actif pour générer les futures versions localement.
     =========================================================================================
 -->
 <!DOCTYPE html>
@@ -16,7 +14,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ROKYU-PACKER | v1.8</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>ROKYU-PACKER | v1.9</title>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -47,15 +46,11 @@
 
         body.is-forge { background: var(--bgForge); color: var(--textForge); }
 
-        /* --- UI ELEMENTS (Cachés en Cloak) --- */
         header, .toolbar, .bar, .pane-header, #stat-bar { 
-            display: none; 
-            opacity: 0;
-            transition: opacity 0.3s ease;
+            display: none; opacity: 0; transition: opacity 0.3s ease;
         }
         body.is-forge header, body.is-forge .toolbar, body.is-forge .bar, body.is-forge .pane-header, body.is-forge #stat-bar { 
-            display: flex; 
-            opacity: 1;
+            display: flex; opacity: 1;
         }
 
         header { height: 40px; padding: 0 20px; background: rgba(0,0,0,0.5); border-bottom: 1px solid var(--borderForge); align-items: center; justify-content: space-between; flex-shrink: 0; }
@@ -66,61 +61,40 @@
         .btn-m { background: transparent; border: 1px solid var(--borderForge); color: rgba(255,255,255,0.4); padding: 2px 8px; border-radius: 3px; cursor: pointer; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; transition: 0.2s; }
         .btn-m.active { border-color: var(--accent); color: var(--accent); background: rgba(0,209,255,0.05); }
 
-        /* --- MAIN LAYOUT --- */
         main { display: grid; grid-template-columns: 1fr; flex: 1; min-height: 0; transition: 0.4s; }
         body.is-forge main { grid-template-columns: 1fr 1fr; gap: 1px; background: var(--borderForge); }
 
         .pane { display: flex; flex-direction: column; padding: 40px; min-height: 0; background: transparent; position: relative; }
         body.is-forge .pane { padding: 10px; background: var(--bgForge); }
 
-        .label { font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent); text-transform: uppercase; }
+        body:not(.is-forge).cloak-view-architect .pane-ancre { display: none; }
+        body:not(.is-forge).cloak-view-ancre .pane-architect { display: none; }
+        body.is-forge .pane-ancre, body.is-forge .pane-architect { display: flex; }
 
-        /* --- TEXTAREAS --- */
         textarea {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: var(--textCloak);
-            font-family: var(--font-mono);
-            font-size: 1.1rem;
-            padding: 10px;
-            resize: none;
-            outline: none;
-            transition: all 0.3s;
+            flex: 1; background: transparent; border: none; color: var(--textCloak); font-family: var(--font-mono); font-size: 1.1rem; padding: 10px; resize: none; outline: none;
         }
         body.is-forge textarea {
-            background: var(--panelForge);
-            border: 1px solid var(--borderForge);
-            border-radius: 4px;
-            color: var(--textForge);
-            font-size: 0.75rem;
-            padding: 12px;
+            background: var(--panelForge); border: 1px solid var(--borderForge); border-radius: 4px; color: var(--textForge); font-size: 0.75rem; padding: 12px;
         }
-        
-        #output { opacity: 0; pointer-events: none; }
-        body.is-forge #output { opacity: 1; pointer-events: auto; }
-
-        /* Vue Architect (Focus Compact) */
+        body:not(.is-forge) #output { color: var(--textCloak); font-size: 1.1rem; }
         body.is-architect #input { flex: 0.3; }
         body.is-architect #output { flex: 1; border-color: var(--pink); }
 
-        /* --- BUTTONS --- */
         .bar { gap: 6px; padding-top: 10px; flex-shrink: 0; }
         button { background: var(--accent); color: #000; border: none; padding: 6px 14px; border-radius: 4px; font-family: var(--font-main); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
         button.alt { background: transparent; border: 1px solid var(--borderForge); color: var(--textForge); }
         button.pink { background: var(--pink); color: white; }
-        button:hover { transform: translateY(-1px); filter: brightness(1.1); }
 
-        /* --- HELPERS --- */
         #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #000; padding: 6px 20px; border-radius: 20px; font-weight: 700; font-size: 0.8rem; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 1000; }
     </style>
 </head>
-<body id="app-body">
+<body id="app-body" class="cloak-view-architect">
 
     <div id="toast">ACTION OK</div>
 
     <header>
-        <h1>ROKYU-<span>PACKER</span> <small style="opacity: 0.4;">V1.8 (Self-Forge)</small></h1>
+        <h1>ROKYU-<span>PACKER</span> <small style="opacity: 0.4;">V1.9 (GH-Pages)</small></h1>
         <div class="stats" id="stat-bar">
             <div style="margin-right: 15px;">TKS: <span id="s-tok" style="color:var(--accent)">0</span></div>
             <div>GAIN: <span id="s-gain" style="color:var(--accent)">0%</span></div>
@@ -133,13 +107,14 @@
         <button class="btn-m" onclick="swSlot('gamma')">GAMMA</button>
         <div style="width: 1px; height: 12px; background: var(--borderForge); margin: 0 5px;"></div>
         <button class="btn-m" id="id-btn" onclick="toggleIdentity()">MODE: ANCRE</button>
+        <button class="btn-m" id="cloak-pref-btn" onclick="toggleCloakPref()">CLOAK: ARCHITECT</button>
         <button class="btn-m" onclick="handleUnpack()">Unpack MD</button>
         <button class="btn-m" onclick="triggerSelfUpdate()" style="border-color: var(--pink); color: var(--pink);">⚙️ Update Tool</button>
         <span style="font-size: 0.5rem; opacity: 0.3; margin-left: auto;">CMD+ENTER POUR BASCULER</span>
     </div>
 
     <main>
-        <div class="pane">
+        <div class="pane pane-ancre">
             <div class="pane-header"><span class="label">Saisie (Ancre)</span></div>
             <textarea id="input" placeholder="Commencez à taper..."></textarea>
             <div class="bar">
@@ -148,7 +123,7 @@
             </div>
         </div>
 
-        <div class="pane">
+        <div class="pane pane-architect">
             <div class="pane-header"><span class="label">Résultat Compact (Architect)</span><span id="g-badge" style="color: #00ff00; font-weight: 700; font-size: 0.6rem;"></span></div>
             <textarea id="output" readonly></textarea>
             <div class="bar">
@@ -177,6 +152,7 @@
 
         let curSlot = 'alpha';
         let slots = JSON.parse(localStorage.getItem('r09_v18_slots')) || { alpha: "", beta: "", gamma: "" };
+        let cloakPref = localStorage.getItem('r09_cloak_pref') || 'architect';
         let isForge = false, isArch = false;
         let debounce;
 
@@ -208,19 +184,19 @@
         }
 
         function triggerSelfUpdate() {
-            const newCode = prompt("Colle le nouveau code du Packer (Firmware) :");
+            const newCode = prompt("Colle le nouveau firmware :");
             if (!newCode || !newCode.includes('<!DOCTYPE html>')) return;
             const blob = new Blob([newCode], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = `rokyu_packer_updated.html`; a.click();
-            showToast("FLASH RÉUSSI : Ouvre le nouveau fichier.");
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = `index.html`; a.click();
+            showToast("FLASH RÉUSSI : Remplace ton index.html");
         }
 
         function toggleForge() {
             isForge = !isForge;
             body.classList.toggle('is-forge', isForge);
             if (!isForge) body.classList.remove('is-architect');
+            else handlePack();
             showToast(isForge ? "FORGE READY" : "CLOAK ON");
         }
 
@@ -229,6 +205,19 @@
             body.classList.toggle('is-architect', isArch);
             document.getElementById('id-btn').textContent = isArch ? "MODE: ARCHITECT" : "MODE: ANCRE";
             handlePack();
+        }
+
+        function toggleCloakPref() {
+            cloakPref = cloakPref === 'ancre' ? 'architect' : 'ancre';
+            localStorage.setItem('r09_cloak_pref', cloakPref);
+            applyCloakPref();
+            showToast("CLOAK: " + cloakPref.toUpperCase());
+        }
+
+        function applyCloakPref() {
+            body.classList.remove('cloak-view-ancre', 'cloak-view-architect');
+            body.classList.add('cloak-view-' + cloakPref);
+            document.getElementById('cloak-pref-btn').textContent = "CLOAK: " + cloakPref.toUpperCase();
         }
 
         window.addEventListener('keydown', e => {
@@ -255,13 +244,11 @@
         function copyToChat() { navigator.clipboard.writeText(elOut.value); showToast("COPIÉ CHAT"); }
         function copyToDoc() { navigator.clipboard.writeText(`--- R09 SYNC [${new Date().toLocaleString()}] ---\n${elOut.value}`); showToast("FORMATÉ GDOC"); }
         function showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 2000); }
-        
         function exportMD() {
             const blob = new Blob([elOut.value], { type: 'text/markdown' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
             a.download = `msgRokyu-${Date.now()}.md`; a.click();
         }
-
         function togglePreview() {
             const w = document.getElementById('preview-wrap');
             w.style.height = w.style.height === '35vh' ? '0' : '35vh';
@@ -271,7 +258,7 @@
             }
         }
 
-        window.onload = () => { elIn.value = slots.alpha; handlePack(); elIn.focus(); };
+        window.onload = () => { applyCloakPref(); elIn.value = slots.alpha; handlePack(); elIn.focus(); };
     </script>
 </body>
 </html>
